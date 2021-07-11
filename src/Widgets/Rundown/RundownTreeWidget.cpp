@@ -506,11 +506,22 @@ void RundownTreeWidget::autoPlayRundownItem(const AutoPlayRundownItemEvent& even
     if (!this->active)
         return;
 
+    QString name = dynamic_cast<MovieCommand*>(dynamic_cast<RundownMovieWidget*>(this->currentAutoPlayWidget)->getCommand())->getVideoName();
+
+    qDebug("(autoPlayRundownItem) asked to autoplay the next item, current: %s", qPrintable(name));
     AbstractRundownWidget* rundownWidget = dynamic_cast<AbstractRundownWidget*>(event.getSource());
+    RundownMovieWidget* rdmw = dynamic_cast<RundownMovieWidget*>(rundownWidget);
+    if (rdmw!=nullptr) {
+        QString nameOrigin = dynamic_cast<MovieCommand*>(rdmw->getCommand())->getVideoName();
+        qDebug("   Origin item: %s", qPrintable(nameOrigin));
+    } else {
+        qDebug("   Origin item wasn't a moviewidget");
+    }
     foreach (QList<AbstractRundownWidget*>* autoPlayQueue, this->autoPlayQueues)
     {
         if (autoPlayQueue->contains(rundownWidget))
         {
+            qDebug("   found autoPlayQueue, *playing* the next item...");
             // Remove currently playing item.
             autoPlayQueue->removeAt(0);
 
@@ -521,13 +532,14 @@ void RundownTreeWidget::autoPlayRundownItem(const AutoPlayRundownItemEvent& even
                 dynamic_cast<AbstractPlayoutCommand*>(rundownQueueWidget)->executeCommand(Playout::PlayoutType::Play);
 
                 this->currentAutoPlayWidget = rundownQueueWidget;
-            }
-            else
+            } else {
+                qDebug("   No more items in the queue, removing the queue itself")                ;
                 this->autoPlayQueues.removeOne(autoPlayQueue);
-
+            }
             break;
         }
     }
+    fflush(stderr);
 }
 
 void RundownTreeWidget::autoPlayNextRundownItem(const AutoPlayNextRundownItemEvent& event)
@@ -535,12 +547,23 @@ void RundownTreeWidget::autoPlayNextRundownItem(const AutoPlayNextRundownItemEve
     if (!this->active)
         return;
 
-    AbstractRundownWidget* rundownWidget = dynamic_cast<AbstractRundownWidget*>(event.getSource());
+    QString name = dynamic_cast<MovieCommand*>(dynamic_cast<RundownMovieWidget*>(this->currentAutoPlayWidget)->getCommand())->getVideoName();
 
+    qDebug("(autoPlayNextRundownItem) asked to autoplay the next item, current: %s", qPrintable(name));
+    AbstractRundownWidget* rundownWidget = dynamic_cast<AbstractRundownWidget*>(event.getSource());
+    RundownMovieWidget* rdmw = dynamic_cast<RundownMovieWidget*>(rundownWidget);
+    if (rdmw!=nullptr) {
+        QString nameOrigin = dynamic_cast<MovieCommand*>(rdmw->getCommand())->getVideoName();
+        qDebug("   Origin item: %s", qPrintable(nameOrigin));
+    } else {
+        qDebug("   Origin item wasn't a moviewidget");
+    }
     foreach (QList<AbstractRundownWidget*>* autoPlayQueue, this->autoPlayQueues)
     {
         if (autoPlayQueue->contains(rundownWidget))
         {
+            qDebug("   found autoPlayQueue, running *next* on the next item...");
+
             // Have more in queue, play them...
             if (!autoPlayQueue->isEmpty())
             {
@@ -548,11 +571,14 @@ void RundownTreeWidget::autoPlayNextRundownItem(const AutoPlayNextRundownItemEve
                 dynamic_cast<AbstractPlayoutCommand*>(rundownQueueWidget)->executeCommand(Playout::PlayoutType::Next);
 
                 this->currentAutoPlayWidget = rundownQueueWidget;
+            } else {
+                qDebug("   No more items in the queue, removing the queue itself")                ;
+                this->autoPlayQueues.removeOne(autoPlayQueue);
             }
-
             break;
         }
     }
+    fflush(stderr);
 }
 
 void RundownTreeWidget::setActive(bool active)
@@ -1170,8 +1196,25 @@ void RundownTreeWidget::setAllUsed(bool used)
     }
 }
 
+AbstractRundownWidget* RundownTreeWidget::getLastChildWithAutoPlay(RundownTreeBaseWidget *treeWidget) {
+    AbstractRundownWidget* lastWidget = nullptr;
+    for (int i = 0; i < treeWidget->currentItem()->childCount(); i++) {
+        QWidget* childWidget = treeWidget->itemWidget(treeWidget->currentItem()->child(i), 0);
+        AbstractRundownWidget* rundownChildWidget = dynamic_cast<AbstractRundownWidget*>(childWidget);
+        if (dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand())) {
+            // Skip video items without AutoPlay.
+            if (!dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand())->getAutoPlay()) {
+                continue;
+            }
+            lastWidget = rundownChildWidget;
+        }
+    }
+    return lastWidget;
+}
+
 bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::ActionType source, QTreeWidgetItem* item)
 {
+    qDebug("Oh an executeCommand, type: %d", (int)type - (int)QEvent::User);
     //QModelIndex currentIndex;
     QTreeWidgetItem* currentItem = nullptr;
 
@@ -1207,17 +1250,18 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
         rundownWidgetParent = dynamic_cast<AbstractRundownWidget*>(selectedWidgetParent);
     }
 
+    fflush(stderr); // GIVE ME THE FUCKING DEBUG OUTPUT
+
     if (source == Action::ActionType::GpiPulse && !rundownWidget->getCommand()->getAllowGpi())
         return true; // Gpi pulses cannot trigger this item.
 
     if (type == Playout::PlayoutType::Next && rundownWidgetParent != nullptr && rundownWidgetParent->isGroup() && dynamic_cast<GroupCommand*>(rundownWidgetParent->getCommand())->getAutoPlay())
     {
         EventManager::getInstance().fireAutoPlayNextRundownItemEvent(AutoPlayNextRundownItemEvent(dynamic_cast<QWidget*>(this->currentAutoPlayWidget)));
-
+        qDebug("Next, no parent, but is group, firing AutoPlayNext");
+        fflush(stderr); // GIVE ME THE FUCKING DEBUG OUTPUT
         return true;
-    }
-    else
-    {
+    } else {
         if (this->currentPlayingItem != nullptr)
             dynamic_cast<AbstractRundownWidget*>(this->treeWidgetRundown->itemWidget(this->currentPlayingItem, 0))->setActive(false);
 
@@ -1227,22 +1271,31 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
         this->currentPlayingItem = currentItem;
     }
 
-    if (rundownWidget != nullptr && rundownWidget->isGroup())
-    {
+    if (rundownWidget != nullptr && rundownWidget->isGroup()) {
+        qDebug("It's a group!");
         if (type == Playout::PlayoutType::Next && dynamic_cast<GroupCommand*>(rundownWidget->getCommand())->getAutoPlay())
         {
-            if (this->currentAutoPlayWidget != nullptr)
-                EventManager::getInstance().fireAutoPlayNextRundownItemEvent(AutoPlayNextRundownItemEvent(dynamic_cast<QWidget*>(this->currentAutoPlayWidget)));
-        }
-        else if (type == Playout::PlayoutType::PauseResume && dynamic_cast<GroupCommand*>(rundownWidget->getCommand())->getAutoPlay())
-        {
+            qDebug("Next pressed");
+            if (this->currentAutoPlayWidget != nullptr) {
+                qDebug("   Let's find out how many lists there are: %d", this->autoPlayQueues.count());
+
+                // as we're a group, we need to give fireAutoPlayNextRundownItem a widget that is IN a queue, therefore grab the last item in our group with autoplay set
+                AbstractRundownWidget* lastChild = getLastChildWithAutoPlay(this->treeWidgetRundown);
+
+                if (lastChild) {
+                    EventManager::getInstance().fireAutoPlayNextRundownItemEvent(AutoPlayNextRundownItemEvent(dynamic_cast<QWidget*>(lastChild)));
+                } else {
+                    qDebug("Failed to find the last child?");
+                }
+            }
+        } else if (type == Playout::PlayoutType::PauseResume && dynamic_cast<GroupCommand*>(rundownWidget->getCommand())->getAutoPlay()) {
             if (this->currentAutoPlayWidget != nullptr)
                 dynamic_cast<AbstractPlayoutCommand*>(this->currentAutoPlayWidget)->executeCommand(type);
-        }
-        else if ((type == Playout::PlayoutType::Play || type == Playout::PlayoutType::Load) && dynamic_cast<GroupCommand*>(rundownWidget->getCommand())->getAutoPlay())
-        {
+        } else if ((type == Playout::PlayoutType::Play || type == Playout::PlayoutType::Load) && dynamic_cast<GroupCommand*>(rundownWidget->getCommand())->getAutoPlay()) {
             // The group have AutoPlay enabled, play the items within the group.
             bool isFirstChild = true;
+
+            qDebug("Play pressed, group has autoplay enabled");
 
             QList<AbstractRundownWidget*>* autoPlayQueue = new QList<AbstractRundownWidget*>();
             for (int i = 0; i < currentItem->childCount(); i++)
@@ -1252,18 +1305,26 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
                 if (dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand()))
                 {
                     // Skip video items without AutoPlay.
-                    if (!dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand())->getAutoPlay())
+                    if (!dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand())->getAutoPlay()) {
+                        qDebug("(%d) Ignoring item without autoplay", i);
                         continue;
+                    }
+
+
+                    qDebug("(%d) Item has autoplay", i);
 
                     // Only execute the first child in the group, add the rest to the AutoPlay queue.
                     if (isFirstChild)
                     {
+                        qDebug("  Is first child");
                         dynamic_cast<AbstractPlayoutCommand*>(rundownChildWidget)->executeCommand(type);
                         if (type == Playout::PlayoutType::Load)
                             break; // We only want  to load the first item.
 
                         this->currentAutoPlayWidget = rundownChildWidget;
                     }
+
+                    qDebug("   Adding to execution queue");
 
                     autoPlayQueue->push_back(rundownChildWidget); // Add our widget to the execution queue.
 
@@ -1285,6 +1346,7 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
             {
                 if (dynamic_cast<GroupCommand*>(rundownWidget->getCommand())->getAutoStep() && type == Playout::PlayoutType::Play)
                 {
+                    qDebug("Clearing delayed commands");
                     EventManager::getInstance().fireClearDelayedCommands();
 
                     this->currentPlayingAutoStepItem = currentItem;
@@ -1294,12 +1356,15 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
             // Execute command on the selected item.
             for (int i = 0; i < currentItem->childCount(); i++)
             {
+                qDebug("Removing %d from autoplay queue", i);
                 QWidget* childWidget = this->treeWidgetRundown->itemWidget(currentItem->child(i), 0);
 
                 EventManager::getInstance().fireRemoveItemFromAutoPlayQueueEvent(RemoveItemFromAutoPlayQueueEvent(currentItem->child(i)));
 
                 dynamic_cast<AbstractPlayoutCommand*>(childWidget)->executeCommand(type);         
             }
+
+            fflush(stderr); // GIVE ME THE FUCKING DEBUG OUTPUT
 
             if (type == Playout::PlayoutType::Preview)
                 return true; // We are done.
@@ -1313,6 +1378,7 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
         { 
             QTreeWidgetItem* previousItem = this->treeWidgetRundown->currentItem();
 
+            qDebug("Select item below?!!");
             selectItemBelow();
             //QTimer::singleShot(500, this, SLOT(selectItemBelow()));
 
@@ -1328,6 +1394,7 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
     }
     else if (rundownWidgetParent != nullptr && rundownWidgetParent->isGroup())
     {
+        qDebug("Not a group, but selected items parent is a group");
         // The selected items parent is a group. If the group have AutoPlay property set, then play current item and below within the group.
         if (type == Playout::PlayoutType::Play && dynamic_cast<GroupCommand*>(rundownWidgetParent->getCommand())->getAutoPlay())
         {
@@ -1339,8 +1406,11 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
                 if (dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand()))
                 {
                     // Skip video items without AutoPlay.
-                    if (!dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand())->getAutoPlay())
+                    if (!dynamic_cast<MovieCommand*>(rundownChildWidget->getCommand())->getAutoPlay()) {
+                        qDebug("(%d) Ignoring item without autoplay", i);
                         continue;
+                    }
+                    qDebug("(%d) Item has autoplay, adding to execution queue", i);
 
                     autoPlayQueue->push_back(rundownChildWidget); // Add our widget to the execution queue.
                 }
@@ -1350,6 +1420,7 @@ bool RundownTreeWidget::executeCommand(Playout::PlayoutType type, Action::Action
         }
     }
 
+    fflush(stderr); // GIVE ME THE FUCKING DEBUG OUTPUT
     return true;
 }
 

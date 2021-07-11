@@ -77,6 +77,8 @@ class WIDGETS_EXPORT RundownTreeWidget : public QWidget, Ui::RundownTreeWidget
         bool previewOnAutoStep;
         bool clearDelayedCommandsOnAutoStep;
 
+        AbstractRundownWidget* getLastChildWithAutoPlay(RundownTreeBaseWidget *treeWidget);
+
         QString page;
         QString activeRundown;
         QString hexHash;
