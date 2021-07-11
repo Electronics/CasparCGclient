@@ -1,6 +1,6 @@
 #include <winver.h>
 
-#include "../../build/Common/Version.h"
+#include "../../build-Solution-Desktop_Qt_5_14_2_MinGW_64_bit-Debug/Common/Version.h" //eww, dunno why it's not picked up by LIBS
 
 IDI_ICON    ICON    "Images/CasparCG.ico"
 

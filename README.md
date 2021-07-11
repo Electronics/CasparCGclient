@@ -39,6 +39,9 @@ Install the pre-built Qt 5.14.2 binaries for Linux 64-bit from Qt [archive](http
 
 VLC need to be pre-installed: `sudo apt-get install vlc libvlc-dev libvlccore-dev`.
 
+## Library Dependencies
+
+* `qatemcontrol` is from https://github.com/petersimonsson/libqatemcontrol
 
 ## Releases
 Complete history of all releases and the changes can be found in the [CHANGELOG](CHANGELOG).
