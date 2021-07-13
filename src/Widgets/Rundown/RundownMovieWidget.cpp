@@ -20,7 +20,7 @@
 RundownMovieWidget::RundownMovieWidget(const LibraryModel& model, QWidget* parent, const QString& color, bool active,
                                        bool loaded, bool paused, bool playing, bool inGroup, bool compactView)
     : QWidget(parent),
-      active(active), loaded(loaded), paused(paused), playing(playing), inGroup(inGroup), compactView(compactView), color(color), model(model),
+      active(active), loaded(loaded),  paused(paused), playing(playing), inGroup(inGroup), compactView(compactView), color(color), model(model),
       reverseOscTime(false), sendAutoPlay(false), hasSentAutoPlay(false), useFreezeOnLoad(false), timeSubscription(NULL), clipSubscription(NULL), fpsSubscription(NULL),
       nameSubscription(NULL), pausedSubscription(NULL), loopSubscription(NULL), stopControlSubscription(NULL), playControlSubscription(NULL),
       playNowControlSubscription(NULL), loadControlSubscription(NULL), pauseControlSubscription(NULL), nextControlSubscription(NULL), updateControlSubscription(NULL),
@@ -37,6 +37,7 @@ RundownMovieWidget::RundownMovieWidget(const LibraryModel& model, QWidget* paren
     setThumbnail();
     setColor(this->color);
     setActive(this->active);
+    setNext(false);
     setCompactView(this->compactView);
 
     this->command.setVideoName(this->model.getName());
@@ -238,6 +239,10 @@ bool RundownMovieWidget::isInGroup() const
     return this->inGroup;
 }
 
+bool RundownMovieWidget::isPlaying() {
+    return this->playing;
+}
+
 AbstractCommand* RundownMovieWidget::getCommand()
 {
     return &this->command;
@@ -286,6 +291,18 @@ void RundownMovieWidget::setActive(bool active)
 
     if (this->active)
         this->labelActiveColor->setStyleSheet(QString("background-color: %1;").arg(Color::DEFAULT_ACTIVE_COLOR));
+    else
+        this->labelActiveColor->setStyleSheet("");
+}
+
+void RundownMovieWidget::setNext(bool next)
+{
+    this->next = next;
+
+    this->animation->stop();
+
+    if (this->next)
+        this->labelActiveColor->setStyleSheet(QString("background-color: %1;").arg(Color::DEFAULT_NEXT_COLOR));
     else
         this->labelActiveColor->setStyleSheet("");
 }

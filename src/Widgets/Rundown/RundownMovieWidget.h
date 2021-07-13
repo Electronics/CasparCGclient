@@ -41,6 +41,7 @@ class WIDGETS_EXPORT RundownMovieWidget : public QWidget, Ui::RundownMovieWidget
 
         virtual bool isGroup() const;
         virtual bool isInGroup() const;
+        virtual bool isPlaying();
         virtual bool executeCommand(Playout::PlayoutType type);
 
         virtual AbstractCommand* getCommand();
@@ -50,6 +51,7 @@ class WIDGETS_EXPORT RundownMovieWidget : public QWidget, Ui::RundownMovieWidget
 
         virtual void setExpanded(bool /* expanded */) {}
         virtual void setActive(bool active);
+        virtual void setNext(bool next);
         virtual void setInGroup(bool inGroup);
         virtual void setColor(const QString& color);
         virtual void readProperties(boost::property_tree::wptree& pt);
@@ -61,6 +63,7 @@ class WIDGETS_EXPORT RundownMovieWidget : public QWidget, Ui::RundownMovieWidget
 
     private:
         bool active;
+        bool next;
         bool loaded;
         bool paused;
         bool playing;

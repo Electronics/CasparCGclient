@@ -78,6 +78,8 @@ class WIDGETS_EXPORT RundownTreeWidget : public QWidget, Ui::RundownTreeWidget
         bool clearDelayedCommandsOnAutoStep;
 
         AbstractRundownWidget* getLastChildWithAutoPlay(RundownTreeBaseWidget *treeWidget);
+        QList<AbstractRundownWidget*>* getQueueWithChildIn(RundownTreeBaseWidget *treeWidget);
+        void removeQueue(QList<AbstractRundownWidget*>* queue);
 
         QString page;
         QString activeRundown;
